@@ -42,19 +42,6 @@
 
 这些放到后续阶段。
 
-## 本地参考项目
-
-`ppt-master` 本地路径：
-
-```text
-F:\Make_money\基于java的多类型网络攻击检测系统\ppt-master
-```
-
-我们已经把关键参考资料转存到：
-
-```text
-docs/reference/ppt-master/
-```
 
 ## 计划代码结构
 
