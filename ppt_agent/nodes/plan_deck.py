@@ -6,7 +6,7 @@ from ppt_agent.services.LLm import llm
 from ppt_agent.state import State
 
 
-def p_d_node(state: State) -> dict:
+def plan_d_node(state: State) -> dict:
     """根据 PPT Brief 生成页面大纲。"""
     ppt_brief = state.get("ppt_brief", {})
 

@@ -6,9 +6,7 @@ from pathlib import Path
 from ppt_agent.state import State
 
 
-PPT_MASTER_ROOT = Path(
-    r"F:\Make_money\基于java的多类型网络攻击检测系统\ppt-master"
-)
+PPT_MASTER_ROOT = Path(__file__).resolve().parents[2] / "ppt_creator"
 
 
 def _make_project_name(topic: str) -> str:
@@ -28,7 +26,7 @@ def _make_project_name(topic: str) -> str:
     return f"{name}_{datetime.now():%Y%m%d_%H%M%S}"
 
 
-def c_p_node(state: State) -> dict:
+def create_p_node(state: State) -> dict:
     """调用 ppt-master 创建项目目录。"""
     ppt_brief = state.get("ppt_brief", {})
     topic = ppt_brief.get("topic", "")

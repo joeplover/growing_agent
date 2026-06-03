@@ -18,6 +18,10 @@ def main() -> None:
             break
 
         state["messages"].append(HumanMessage(content=user_input))
+
+        if state.get("status") == "waiting_confirm":
+            print("\nAgent：已收到确认，开始生成 PPT，请稍等...")
+
         state = app.invoke(state)
 
         if state.get("assistant_reply"):
@@ -25,6 +29,10 @@ def main() -> None:
 
         if state.get("status") == "project_created":
             print(f"\nAgent：项目已创建：{state.get('project_path')}")
+            break
+
+        if state.get("status") == "ppt_exported":
+            print(f"\nAgent：PPT 已生成：{state.get('pptx_path')}")
             break
 
         if state.get("status") == "failed":

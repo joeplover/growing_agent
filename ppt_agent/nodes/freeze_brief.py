@@ -1,7 +1,7 @@
 from ppt_agent.state import State
 
 
-def f_b_node(state:State):
+def freeze_b_node(state:State):
     """把已完整的需求冻结成 PPT Brief。"""
     requirement = state.get("requirement",{})
 

@@ -9,7 +9,7 @@ FIELD_QUESTIONS = {
     "page_count": "你希望大概做多少页？",
     "style": "你希望 PPT 是什么风格？比如科技蓝、商务简洁、学术答辩风。",
 }
-def a_f_node(state:State):
+def ask_f_node(state:State):
     """需求不完整时，向用户追问。"""
     missing_fields = state.get("missing_fields", [])
     questions = [

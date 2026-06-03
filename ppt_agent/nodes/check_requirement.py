@@ -2,7 +2,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ppt_agent.state import State
 
-def c_r_node(state:State):
+def check_r_node(state:State):
     """
     检查需求是否足够创建 PPT Brief
 

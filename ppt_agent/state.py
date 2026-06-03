@@ -34,6 +34,12 @@ class State(TypedDict, total=False):
         "outline_ready",
         "project_created",
         "failed",
+        "waiting_confirm",
+        "confirmed",
+        "design_spec_created",
+        "spec_lock_created",
+        "svg_created",
+        "ppt_exported",
     ]
 
     # 冻结后的 PPT 制作任务单。
@@ -45,5 +51,13 @@ class State(TypedDict, total=False):
     # ppt-master 创建出来的项目路径。
     project_path: str
 
+    # 生成出来的 SVG 文件。
+    svg_files: list[str]
+
+    # 生成出来的 PPTX 文件。
+    pptx_path: str
+
     # 出错时写入。
     error: str
+    # 用户是否确认方案。
+    confirmed: bool
