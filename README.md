@@ -1,71 +1,95 @@
 # growing_agent
 
-聊天式 PPT 制作 Agent 学习项目。
+`growing_agent` 是一个用 Python + LangGraph 搭建的聊天式 PPT 制作 Agent。
 
-本项目目标是用 Python + LangGraph 搭建一个小型 agent：它通过聊天收集用户需求，整理成结构化 PPT Brief，再调用 `ppt-master` 的项目创建、SVG 处理和 PPTX 导出能力，逐步完成一份可编辑的 PowerPoint。
+它不重新实现 PPT 生成器，而是把用户聊天需求整理成结构化任务，再调用本地 `ppt-master` 的工作流完成 PPT 项目创建、设计规格生成、SVG 页面生成和 PPTX 导出。
 
-## 当前阶段
+## 先读这个
 
-第一阶段只做最小闭环：
+真正用于开发的主文档是：
 
-1. 通过聊天收集 PPT 需求。
-2. 检查需求是否完整。
-3. 信息不足时追问用户。
-4. 信息完整时生成结构化 Brief。
-5. 生成页面大纲。
-6. 调用 `ppt-master` 创建项目目录。
+[docs/WORK_MATERIALS.md](docs/WORK_MATERIALS.md)
 
-暂时不做完整 SVG 逐页生成和 PPTX 导出。那部分会在 graph、state、human-in-the-loop 跑稳之后再接入。
+这份文档写清楚了：
 
-## 参考项目
+- 我们要做的 agent 到底是什么。
+- 工作时需要用到哪些资料。
+- 哪些 `ppt-master` 文件必须参考。
+- 第一版要实现哪些 LangGraph 节点。
+- 每个节点的输入、输出和验收标准。
+- 需要调用哪些本地命令。
 
-本项目参考本地 `ppt-master` 工作流：
+## 当前目标
+
+第一版只做最小闭环：
+
+```text
+用户输入 PPT 需求
+  -> 提取结构化需求
+  -> 检查缺失字段
+  -> 信息不足时追问
+  -> 信息完整时生成 PPT Brief
+  -> 生成页面大纲
+  -> 调用 ppt-master 创建项目目录
+```
+
+第一版暂时不做：
+
+- PDF / DOCX / URL 自动解析
+- 自动生成 `design_spec.md`
+- 自动逐页生成 SVG
+- 自动导出 PPTX
+
+这些放到后续阶段。
+
+## 本地参考项目
+
+`ppt-master` 本地路径：
 
 ```text
 F:\Make_money\基于java的多类型网络攻击检测系统\ppt-master
 ```
 
-关键参考文件：
-
-- `skills/ppt-master/SKILL.md`
-- `skills/ppt-master/scripts/README.md`
-- `docs/zh/technical-design.md`
-- `projects/network_attack_detection_ppt169_20260519/design_spec.md`
-- `projects/network_attack_detection_ppt169_20260519/spec_lock.md`
-
-## 计划目录
+我们已经把关键参考资料转存到：
 
 ```text
-growing_agent/
-  README.md
-  docs/
-    agent_granularity.md
-    ppt_master_pipeline.md
-    roadmap.md
-  ppt_agent/
-    state.py
-    graph.py
-    app.py
-    nodes/
-    services/
-    prompts/
+docs/reference/ppt-master/
 ```
 
-## 第一版成功标准
+## 计划代码结构
 
-运行命令：
+```text
+ppt_agent/
+  app.py
+  graph.py
+  state.py
+  nodes/
+    collect_requirement.py
+    check_requirement.py
+    ask_followup.py
+    freeze_brief.py
+    plan_deck.py
+    create_project.py
+  services/
+    ppt_master_runner.py
+    project_naming.py
+  prompts/
+    requirement_extract.md
+    deck_planner.md
+```
+
+## 第一版运行目标
 
 ```powershell
-python -m ppt_agent.app "我要做一个毕业答辩PPT，题目是基于Java的多类型网络攻击检测系统，20页，科技蓝风格，给答辩老师看"
+python -m ppt_agent.app "我要做一个毕业答辩PPT，题目是基于Java的多类型网络攻击检测系统，20页，科技蓝风格，给答辩老师看，重点讲系统架构、检测规则和实验结果"
 ```
 
-期望结果：
+期望输出：
 
 ```text
 需求完整
 Brief 已生成
 Outline 已生成
 Project 已创建
+项目路径: F:\Make_money\基于java的多类型网络攻击检测系统\ppt-master\projects\<project_name>
 ```
-
-并返回 `ppt-master/projects/<project_name>` 的项目路径。

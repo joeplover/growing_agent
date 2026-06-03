@@ -1,40 +1,65 @@
-# growing_agent 开发路线图
+# 开发路线图
 
-## Phase 1: 命令行版 LangGraph
+这份路线图按“能运行、能验证、能扩展”的顺序推进。
 
-目标：跑通最小 agent 工作流。
+## Phase 1: 命令行 LangGraph 最小闭环
 
-功能：
+目标：用户输入一句 PPT 需求，程序创建一个 `ppt-master` 项目目录。
 
-- 定义 `PPTAgentState`
-- 实现需求提取节点
-- 实现需求完整性检查节点
-- 实现追问节点
-- 实现 Brief 生成节点
-- 实现页面大纲节点
-- 实现 `ppt-master` 项目创建节点
+必须实现：
 
-成功标准：
+- `ppt_agent/state.py`
+- `ppt_agent/graph.py`
+- `ppt_agent/app.py`
+- `ppt_agent/nodes/collect_requirement.py`
+- `ppt_agent/nodes/check_requirement.py`
+- `ppt_agent/nodes/ask_followup.py`
+- `ppt_agent/nodes/freeze_brief.py`
+- `ppt_agent/nodes/plan_deck.py`
+- `ppt_agent/nodes/create_project.py`
+- `ppt_agent/services/ppt_master_runner.py`
 
-```text
-输入完整 PPT 需求
--> 输出 Brief
--> 输出 Outline
--> 创建 ppt-master 项目目录
+验收命令：
+
+```powershell
+python -m ppt_agent.app "我要做一个毕业答辩PPT，题目是基于Java的多类型网络攻击检测系统，20页，科技蓝风格，给答辩老师看，重点讲系统架构、检测规则和实验结果"
 ```
 
-## Phase 2: 加入用户确认
+验收结果：
 
-目标：学习 human-in-the-loop。
+```text
+需求完整
+Brief 已生成
+Outline 已生成
+Project 已创建
+```
 
-功能：
+## Phase 2: 多轮追问
 
-- 生成八项确认建议
-- 等待用户确认
-- 用户修改后重新生成 Brief / Outline
-- 确认后继续创建项目
+目标：用户信息不全时，agent 能追问，而不是乱生成。
 
-八项确认：
+示例输入：
+
+```text
+帮我做一个网络安全系统的PPT
+```
+
+应该输出：
+
+```text
+我还需要确认：
+1. PPT 的具体题目是什么？
+2. 使用场景是什么？
+3. 目标受众是谁？
+4. 大概多少页？
+5. 想要什么风格？
+```
+
+## Phase 3: 设计确认
+
+目标：引入 `ppt-master` 的八项确认思想。
+
+确认项：
 
 - 画布格式
 - 页数范围
@@ -45,69 +70,64 @@
 - 字体方案
 - 图片使用
 
-## Phase 3: 接入 FastAPI
+这一阶段要让 graph 停下来等用户确认。
 
-目标：把命令行 agent 变成聊天 API。
+## Phase 4: 写入项目资料
 
-接口：
+目标：把 Brief 和 Outline 写入 `ppt-master` 项目。
+
+产物：
 
 ```text
-POST /chat
-GET /sessions/{session_id}
-POST /sessions/{session_id}/confirm
+sources/user_requirement.md
+agent_brief.json
+agent_outline.json
 ```
 
-功能：
+注意：这一阶段仍然不移动用户外部文件。
 
-- session 隔离
-- 保存会话 state
-- 返回 agent 状态
-- 支持等待用户补充信息
+## Phase 5: 生成 design_spec.md 和 spec_lock.md
 
-## Phase 4: 生成设计规格
+目标：让 agent 按 `ppt-master` 示例生成设计规格。
 
-目标：让 agent 生成 `design_spec.md` 和 `spec_lock.md`。
+参考：
 
-功能：
+```text
+docs/reference/ppt-master/example_design_spec.md
+docs/reference/ppt-master/example_spec_lock.md
+```
 
-- 根据 Brief 生成设计说明
-- 根据 Outline 生成页面列表
-- 根据风格生成颜色、字体、图标规范
-- 写入项目目录
+产物：
 
-## Phase 5: SVG 逐页生成
+```text
+<project_path>/design_spec.md
+<project_path>/spec_lock.md
+```
 
-目标：进入真正 PPT 视觉生成阶段。
+## Phase 6: 逐页 SVG 生成
 
-功能：
+目标：根据 outline 逐页生成 SVG。
 
-- 每页生成前读取 `spec_lock.md`
-- 根据页面大纲生成 SVG
-- 保存到 `svg_output/`
-- 逐页执行，不并行
+规则：
 
-## Phase 6: 质量检查和导出
+- 必须串行。
+- 每页生成前读取 `spec_lock.md`。
+- 每页写入 `svg_output/`。
+- 不并行生成页面。
+
+## Phase 7: 质量检查和导出
 
 目标：输出最终 PPTX。
 
-功能：
+调用：
 
-- 调用 `svg_quality_checker.py`
-- 错误页重生成
-- 调用 `finalize_svg.py`
-- 调用 `svg_to_pptx.py`
-- 返回 `exports/*.pptx`
+```powershell
+python skills/ppt-master/scripts/finalize_svg.py <project_path>
+python skills/ppt-master/scripts/svg_to_pptx.py <project_path>
+```
 
-## Phase 7: 完整聊天式 PPT Agent
+产物：
 
-目标：形成可用产品。
-
-功能：
-
-- 用户上传资料
-- agent 追问需求
-- agent 生成方案
-- 用户确认
-- 自动创建项目
-- 自动生成 PPT
-- 返回可编辑 PPTX
+```text
+<project_path>/exports/*.pptx
+```

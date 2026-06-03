@@ -1,135 +1,227 @@
-# PPT Agent 颗粒度拆分
+# Agent 颗粒度设计
 
-## 核心原则
+这份文档只回答一个问题：PPT 制作 Agent 应该拆到什么颗粒度。
 
-第一版不要拆成多个独立 agent，而是拆成一个 LangGraph 里的多个节点。
+结论：第一版不要拆成多个独立 agent，要拆成一个 LangGraph 里的多个节点。
 
-原因：
+## 为什么先用节点，不先用多 agent
 
-- 节点比多 agent 更容易调试。
-- 每个节点都有明确输入和输出。
-- 可以先跑通工作流，再把稳定节点升级成子 agent。
-- `ppt-master` 本身是严格串行流水线，过早并行会破坏上下文一致性。
-
-## 产品级流程
+`ppt-master` 的流程是严格串行的：
 
 ```text
-聊天收集需求
-  -> 需求完整性检查
-  -> 生成 PPT Brief
-  -> 生成页面大纲
-  -> 创建 ppt-master 项目
-  -> 写入 sources / design_spec / spec_lock
-  -> 生成 SVG 页面
-  -> 质量检查
-  -> PPTX 导出
+需求
+  -> 设计确认
+  -> design_spec.md
+  -> spec_lock.md
+  -> 逐页 SVG
+  -> 检查
+  -> 导出
 ```
 
-## 第一阶段 LangGraph 节点
+如果一开始拆成多个并行 agent，很容易出现：
+
+- 页面风格不一致。
+- 不同 agent 对用户需求理解不同。
+- SVG 页面之间视觉节奏漂移。
+- 还没确认设计规格就提前生成页面。
+- 调试时不知道错误来自哪个 agent。
+
+所以第一版采用：
+
+```text
+一个 LangGraph
+多个清晰节点
+每个节点只做一件事
+```
+
+## 第一版节点
 
 ```text
 START
   -> collect_requirement_node
   -> check_requirement_node
-  -> 条件分支
-       -> 信息不足: ask_followup_node -> END
-       -> 信息足够: freeze_brief_node
+  -> route_by_requirement
+       -> ask_followup_node
+       -> freeze_brief_node
   -> plan_deck_node
   -> create_project_node
   -> END
 ```
 
-## 节点职责
+## 节点定义
 
-### collect_requirement_node
+### 1. collect_requirement_node
 
-从用户自然语言中提取 PPT 需求字段。
+职责：从用户消息中提取 PPT 需求。
 
-输出字段：
+输入：
 
-- topic
-- use_case
-- audience
-- page_count
-- style
-- language
-- source_files
-- key_points
+```python
+state["user_message"]
+```
 
-### check_requirement_node
+输出：
 
-检查最小必填字段是否齐全。
+```python
+state["requirement"]
+```
 
-必填字段：
+字段：
 
-- topic
-- use_case
-- audience
-- page_count
-- style
+```python
+{
+    "topic": "PPT 题目",
+    "use_case": "使用场景",
+    "audience": "目标受众",
+    "page_count": 20,
+    "style": "视觉风格",
+    "language": "zh-CN",
+    "key_points": ["重点1", "重点2"],
+    "source_files": []
+}
+```
 
-输出字段：
+### 2. check_requirement_node
 
-- requirement_complete
-- missing_fields
+职责：检查需求是否足够创建 PPT Brief。
 
-### ask_followup_node
+最小必填字段：
 
-当信息不足时，生成追问。
+```text
+topic
+use_case
+audience
+page_count
+style
+```
+
+输出：
+
+```python
+state["requirement_complete"] = True 或 False
+state["missing_fields"] = ["audience", "page_count"]
+```
+
+### 3. ask_followup_node
+
+职责：需求不完整时，向用户追问。
+
+输入：
+
+```python
+state["missing_fields"]
+```
+
+输出：
+
+```python
+state["assistant_reply"]
+state["status"] = "waiting_user"
+```
 
 示例：
 
 ```text
-我还需要确认两个信息：
-1. 这份 PPT 是给谁看的？
+我还需要确认两点：
+1. 这份 PPT 是给谁看的？例如答辩老师、领导、客户。
 2. 你希望大概多少页？
 ```
 
-### freeze_brief_node
+### 4. freeze_brief_node
 
-把聊天内容冻结成结构化 PPT Brief。
+职责：把聊天需求冻结成稳定的 PPT Brief。
 
-Brief 是后续所有节点的稳定输入，不再依赖松散聊天文本。
+输入：
 
-### plan_deck_node
-
-根据 Brief 生成页面大纲。
-
-输出示例：
-
-```json
-[
-  {"page": 1, "title": "封面", "purpose": "展示题目、学生、导师"},
-  {"page": 2, "title": "目录", "purpose": "说明汇报结构"},
-  {"page": 3, "title": "研究背景", "purpose": "说明项目必要性"}
-]
+```python
+state["requirement"]
 ```
 
-### create_project_node
+输出：
 
-调用 `ppt-master` 的项目初始化脚本。
+```python
+state["ppt_brief"]
+```
 
-命令：
+Brief 是后续页面规划、项目创建、设计规格生成的统一输入。
+
+### 5. plan_deck_node
+
+职责：根据 PPT Brief 生成页面大纲。
+
+输入：
+
+```python
+state["ppt_brief"]
+```
+
+输出：
+
+```python
+state["deck_outline"]
+```
+
+每一页包含：
+
+```python
+{
+    "page": 1,
+    "title": "封面",
+    "purpose": "展示题目、学生、导师",
+    "rhythm": "anchor"
+}
+```
+
+### 6. create_project_node
+
+职责：调用 `ppt-master` 创建项目目录。
+
+输入：
+
+```python
+state["ppt_brief"]
+state["deck_outline"]
+```
+
+调用：
 
 ```powershell
 python skills/ppt-master/scripts/project_manager.py init <project_name> --format ppt169
 ```
 
-## 后续可升级的子 agent
+输出：
 
-等第一版跑稳后，可以拆出这些角色：
+```python
+state["project_path"]
+state["status"] = "project_created"
+```
 
-- Requirement Agent: 需求收集。
-- Strategist Agent: 页面规划、风格确认、设计规格。
-- PptMaster Tool Agent: 调用本地脚本。
-- Slide Executor Agent: 逐页 SVG 生成。
-- Quality Agent: SVG 检查和错误定位。
-- Delivery Agent: 汇总输出和交付。
+## 后续阶段节点
 
-## 不要一开始做的事
+第一版跑通后，再增加：
 
-- 不要直接一句话生成完整 PPT。
-- 不要一开始做多个并行子 agent。
-- 不要先接 FastAPI，再写 LangGraph。
-- 不要第一版就处理 PDF/DOCX/URL 全格式。
-- 不要第一版就做 SVG 自动修复。
+```text
+write_requirement_source_node
+generate_design_spec_node
+generate_spec_lock_node
+confirm_design_node
+generate_svg_page_node
+check_svg_quality_node
+finalize_svg_node
+export_pptx_node
+deliver_result_node
+```
+
+## 什么时候升级成多 agent
+
+只有当某个节点内部逻辑复杂到需要独立上下文时，才升级成子 agent。
+
+候选子 agent：
+
+| Agent | 从哪个节点升级 | 负责什么 |
+| --- | --- | --- |
+| Requirement Agent | collect_requirement_node | 多轮需求收集 |
+| Strategist Agent | plan_deck_node / generate_design_spec_node | 页面规划和设计规格 |
+| Executor Agent | generate_svg_page_node | 逐页生成 SVG |
+| Quality Agent | check_svg_quality_node | 检查和定位 SVG 问题 |
+| Delivery Agent | export_pptx_node | 导出和交付 |
