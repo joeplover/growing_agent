@@ -1,5 +1,6 @@
 import re
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def create_p_node(state: State) -> dict:
     project_name = _make_project_name(topic)
 
     command = [
-        "python",
+        sys.executable,
         "skills/ppt-master/scripts/project_manager.py",
         "init",
         project_name,
