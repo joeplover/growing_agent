@@ -4,6 +4,7 @@ from ppt_agent.state import State
 def freeze_b_node(state:State):
     """把已完整的需求冻结成 PPT Brief。"""
     requirement = state.get("requirement",{})
+    material = state.get("material", {})
 
     ppt_brief = {
         "topic": requirement.get("topic"),
@@ -14,6 +15,7 @@ def freeze_b_node(state:State):
         "language": requirement.get("language", "zh-CN"),
         "key_points": requirement.get("key_points", []),
         "source_files": requirement.get("source_files", []),
+        "material": material,
     }
     return{
         "ppt_brief":ppt_brief,

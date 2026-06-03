@@ -4,6 +4,17 @@ from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
 
+class MaterialState(TypedDict, total=False):
+    """用户补充资料的独立状态。"""
+
+    raw_texts: list[str]
+    file_paths: list[str]
+    summary: dict
+    topic: str
+    keywords: list[str]
+    key_points: list[str]
+
+
 class State(TypedDict, total=False):
     """
     LangGraph 的共享状态。
@@ -34,8 +45,11 @@ class State(TypedDict, total=False):
         "outline_ready",
         "project_created",
         "failed",
+        "waiting_material",
+        "material_ready",
         "waiting_confirm",
         "confirmed",
+        "materials_written",
         "design_spec_created",
         "spec_lock_created",
         "svg_created",
@@ -44,6 +58,9 @@ class State(TypedDict, total=False):
 
     # 冻结后的 PPT 制作任务单。
     ppt_brief: dict
+
+    # 用户补充资料。
+    material: MaterialState
 
     # 页面大纲，一页一个 dict。
     deck_outline: list[dict]
@@ -59,5 +76,6 @@ class State(TypedDict, total=False):
 
     # 出错时写入。
     error: str
+
     # 用户是否确认方案。
     confirmed: bool

@@ -1,4 +1,5 @@
 import json
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -18,12 +19,18 @@ def collect_r_node(state: State) -> dict:
             "error": "没有找到用户消息。",
         }
 
-    user_message = messages[-1].content
+    user_message = messages[-1].content.strip()
 
-    res = llm.invoke(
-        [
-            SystemMessage(
-                content="""
+    if not user_message:
+        return {
+            "status": "collecting",
+        }
+
+    try:
+        res = llm.invoke(
+            [
+                SystemMessage(
+                    content="""
 你是一个 PPT 需求信息提取工具。
 
 你需要从用户的需求中提取关键信息，并且只返回 JSON，不要返回任何解释文字。
@@ -47,12 +54,25 @@ JSON 格式如下：
 - key_points 用 []
 - source_files 用 []
 """
-            ),
-            HumanMessage(content=user_message),
-        ]
-    )
+                ),
+                HumanMessage(content=user_message),
+            ]
+        )
 
-    extracted_requirement = json.loads(res.content)
+        extracted_requirement = json.loads(_clean_json(res.content))
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "error": f"需求信息解析失败：{exc}",
+        }
+
+    if not isinstance(extracted_requirement, dict):
+        return {
+            "status": "failed",
+            "error": "需求信息解析失败：LLM 没有返回 JSON 对象。",
+        }
+
+    extracted_requirement = _normalize_requirement(extracted_requirement)
 
     old_requirement = state.get("requirement", {})
     requirement = {
@@ -68,3 +88,23 @@ JSON 格式如下：
         "requirement": requirement,
         "status": "collecting",
     }
+
+
+def _normalize_requirement(requirement: dict) -> dict:
+    page_count = requirement.get("page_count")
+
+    if isinstance(page_count, str):
+        match = re.search(r"\d+", page_count)
+        requirement["page_count"] = int(match.group()) if match else None
+
+    return requirement
+
+
+def _clean_json(text: str) -> str:
+    value = text.strip()
+
+    if value.startswith("```"):
+        value = re.sub(r"^```[a-zA-Z]*", "", value).strip()
+        value = re.sub(r"```$", "", value).strip()
+
+    return value

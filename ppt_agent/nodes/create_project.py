@@ -32,6 +32,12 @@ def create_p_node(state: State) -> dict:
     ppt_brief = state.get("ppt_brief", {})
     topic = ppt_brief.get("topic", "")
 
+    if not PPT_MASTER_ROOT.exists():
+        return {
+            "status": "failed",
+            "error": f"缺少 ppt_creator 目录：{PPT_MASTER_ROOT}",
+        }
+
     project_name = _make_project_name(topic)
 
     command = [
@@ -79,4 +85,9 @@ def create_p_node(state: State) -> dict:
         return {
             "status": "failed",
             "error": exc.stderr or exc.stdout or str(exc),
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "error": f"项目创建失败：{exc}",
         }
