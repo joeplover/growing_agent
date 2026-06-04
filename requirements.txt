@@ -1,0 +1,11 @@
+# growing_agent runtime dependencies
+
+langchain-core==1.4.0
+langchain-openai==1.2.2
+langgraph==1.2.2
+
+# Required by ppt_creator export scripts.
+python-pptx==1.0.2
+
+# Local ppt-master runtime dependencies.
+-r ppt_creator/requirements.txt
