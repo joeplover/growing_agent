@@ -19,10 +19,18 @@ def collect_r_node(state: State) -> dict:
             "error": "没有找到用户消息。",
         }
 
-    user_message = messages[-1].content.strip()
+    user_message = _clean_followup_reply(messages[-1].content)
 
     if not user_message:
         return {
+            "status": "collecting",
+        }
+
+    direct_requirement = _extract_direct_followup_requirement(state, user_message)
+    if direct_requirement:
+        old_requirement = state.get("requirement", {})
+        return {
+            "requirement": {**old_requirement, **direct_requirement},
             "status": "collecting",
         }
 
@@ -53,6 +61,13 @@ JSON 格式如下：
 - page_count 用 null
 - key_points 用 []
 - source_files 用 []
+
+不要根据常识补默认值。用户只说“我要制作一个 PPT”“帮我做 PPT”时：
+- topic 必须返回 ""
+- use_case 必须返回 ""
+- audience 必须返回 ""
+- page_count 必须返回 null
+- style 必须返回 ""
 """
                 ),
                 HumanMessage(content=user_message),
@@ -98,6 +113,44 @@ def _normalize_requirement(requirement: dict) -> dict:
         requirement["page_count"] = int(match.group()) if match else None
 
     return requirement
+
+
+def _extract_direct_followup_requirement(state: State, user_message: str) -> dict:
+    missing_fields = state.get("missing_fields") or []
+    if len(missing_fields) != 1:
+        return {}
+
+    field = missing_fields[0]
+    if field == "audience" and _looks_like_short_followup_value(user_message):
+        return {"audience": user_message}
+
+    if field == "page_count":
+        match = re.search(r"\d+", user_message)
+        if match and len(user_message) <= 12:
+            return {"page_count": int(match.group())}
+
+    if field in {"topic", "use_case", "style"} and _looks_like_short_followup_value(user_message):
+        return {field: user_message}
+
+    return {}
+
+
+def _looks_like_short_followup_value(text: str) -> bool:
+    value = text.strip()
+    if not value:
+        return False
+
+    if "\n" in value:
+        return False
+
+    return len(value) <= 30
+
+
+def _clean_followup_reply(text: str) -> str:
+    value = text.strip()
+    value = re.sub(r"^回复\s+[^:\n：]{1,30}[:：]\s*", "", value).strip()
+    value = value.strip("\u00a0 ")
+    return value
 
 
 def _clean_json(text: str) -> str:

@@ -32,7 +32,7 @@ def route_entry(state: State) -> str:
     if state.get("status") == "waiting_confirm":
         return "check_user_confirm_node"
 
-    if state.get("status") == "waiting_material":
+    if state.get("status") in {"waiting_material", "waiting_material_upload"}:
         return "collect_material_node"
 
     return "collect_requirement_node"
