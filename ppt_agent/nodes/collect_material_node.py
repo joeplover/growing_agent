@@ -7,8 +7,6 @@ from ppt_agent.state import State
 MATERIAL_LIBRARY_DIR = Path(__file__).resolve().parents[2] / "materials"
 
 INCLUDE_WORDS = {
-    "添加资料",
-    "添加",
     "引入",
     "导入",
     "需要",
@@ -21,8 +19,6 @@ INCLUDE_WORDS = {
 }
 
 EXCLUDE_WORDS = {
-    "不添加",
-    "直接生成",
     "不引入",
     "不用",
     "不要",
@@ -48,41 +44,58 @@ def collect_m_node(state: State) -> dict:
 
     user_text = messages[-1].content.strip()
 
+    if user_text.lower() in SKIP_WORDS:
+        material = state.get("material", _empty_material())
+        return {
+            "material": material,
+            "status": "material_ready",
+        }
+
     old_material = state.get("material", _empty_material())
     old_materials = old_material.get("raw_texts", [])
     old_file_paths = old_material.get("file_paths", [])
     requirement = state.get("requirement", {})
+
     choice = _normalize_choice(user_text)
 
-    if state.get("status") == "waiting_material":
-        if choice == "include":
-            return {
-                "material": old_material,
-                "requirement": requirement,
-                "status": "waiting_material_upload",
-                "assistant_reply": (
-                    "请发送资料文本或上传资料文件。资料收到后我会添加到 materials/ 文件夹并引用。"
-                ),
-            }
-
-        if choice == "exclude" or user_text.lower() in SKIP_WORDS:
+    if choice == "include":
+        library_texts, library_paths = _load_material_library()
+        if not library_texts:
             return {
                 "material": old_material,
                 "requirement": requirement,
                 "status": "material_ready",
             }
 
-        return {
-            "material": old_material,
-            "requirement": requirement,
-            "status": "waiting_material",
-            "assistant_reply": "请回复“添加资料”或“不添加，直接生成”。",
-        }
+        material_text = "\n\n".join(library_texts)
+        material_summary = _extract_material_summary(material_text) if material_text else {}
 
-    if user_text.lower() in SKIP_WORDS:
-        material = state.get("material", _empty_material())
+        if (
+            material_summary.get("topic")
+            and not _is_bad_topic(material_summary.get("topic", ""))
+            and _is_generic_topic(requirement.get("topic", ""))
+        ):
+            requirement = {
+                **requirement,
+                "topic": material_summary.get("topic"),
+            }
+
+        if material_summary.get("key_points"):
+            requirement = {
+                **requirement,
+                "key_points": material_summary.get("key_points"),
+            }
+
         return {
-            "material": material,
+            "material": {
+                "raw_texts": old_materials + library_texts,
+                "file_paths": old_file_paths + library_paths,
+                "summary": material_summary,
+                "topic": material_summary.get("topic", ""),
+                "keywords": material_summary.get("keywords", []),
+                "key_points": material_summary.get("key_points", []),
+            },
+            "requirement": requirement,
             "status": "material_ready",
         }
 
@@ -93,34 +106,8 @@ def collect_m_node(state: State) -> dict:
             "status": "material_ready",
         }
 
-    material_text, material_paths = _read_material_text(user_text)
-    material_summary = _extract_material_summary(material_text) if material_text else {}
-
-    if (
-        material_summary.get("topic")
-        and not _is_bad_topic(material_summary.get("topic", ""))
-        and _is_generic_topic(requirement.get("topic", ""))
-    ):
-        requirement = {
-            **requirement,
-            "topic": material_summary.get("topic"),
-        }
-
-    if material_summary.get("key_points"):
-        requirement = {
-            **requirement,
-            "key_points": material_summary.get("key_points"),
-        }
-
     return {
-        "material": {
-            "raw_texts": old_materials + ([material_text] if material_text else []),
-            "file_paths": old_file_paths + material_paths,
-            "summary": material_summary,
-            "topic": material_summary.get("topic", ""),
-            "keywords": material_summary.get("keywords", []),
-            "key_points": material_summary.get("key_points", []),
-        },
+        "material": old_material,
         "requirement": requirement,
         "status": "material_ready",
     }

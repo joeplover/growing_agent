@@ -37,7 +37,7 @@ def check_u_c_node(state: State) -> dict:
         return {
             "confirmed": False,
             "status": "waiting_confirm",
-            "assistant_reply": "请直接回复：确认 / 继续 / 没问题。",
+            "assistant_reply": "请回复“确认”后继续。",
         }
 
     user_text = _clean_text(messages[-1].content).lower()

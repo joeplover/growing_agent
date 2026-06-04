@@ -46,7 +46,6 @@ class State(TypedDict, total=False):
         "project_created",
         "failed",
         "waiting_material",
-        "waiting_material_upload",
         "material_ready",
         "waiting_confirm",
         "confirmed",

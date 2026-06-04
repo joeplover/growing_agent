@@ -26,4 +26,3 @@ ppt_creator/projects/
 checkpoints.db
 checkpoints.db-shm
 checkpoints.db-wal
-.lark_bot.lock
